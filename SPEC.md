@@ -69,7 +69,7 @@ Cột "công nghệ gợi ý" chỉ là cách làm cái #1. Cụm công nghệ:
 | **Self-supervised contrastive** | ✅ Chạy (không thắng) | `src/contrastive.py` · `scripts/08` |
 | **Khan hiếm lỗi nhân tạo (trọng yếu)** | ✅ Chạy | `scripts/06_scarcity_aug.py` |
 | Deep temporal (LSTM / 1D-CNN) | ✅ Chạy | `scripts/04_train_lstm.py` |
-| Diffusion | ⚠️ Chưa chạy (cần GPU lớn) | `src/Diffusion-TS` (clone tham khảo) |
+| DDPM (diffusion nhẹ) | ✅ Chạy (kém nhất ở khan hiếm) | `src/ddpm.py` |
 
 ---
 

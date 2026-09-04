@@ -74,9 +74,7 @@ A1_predictive_maintenance/
 │   ├── generator.py   # BỘ SINH TỐI ƯU: interpolate + amp_align + interp_align (căn pha) + spectral_mixup + ECDF/KS align
 │   ├── contrastive.py # self-supervised SimCLR encoder (thử — kém feature 24D)
 │   ├── ddpm.py        # DDPM nhẹ sinh lỗi (thử — kém nhất khi khan hiếm)
-│   ├── timegan_torch.py  # TimeGAN bản PyTorch (chạy CPU/GPU)
-│   ├── TimeGAN/       # clone tham khảo
-│   └── Diffusion-TS/  # clone tham khảo (cần GPU lớn, chưa chạy)
+│   └── timegan_torch.py  # TimeGAN bản PyTorch (chạy CPU/GPU) — tự viết, không clone
 ├── scripts/
 │   ├── download_data.sh    # tải NASA IMS + FEMTO
 │   ├── download_papers.sh  # tải paper tham khảo
@@ -134,8 +132,7 @@ python scripts/04_train_lstm.py --dataset ims --model lstm
 - **FEMTO/PRONOSTIA**: accelerated life test.
 
 ## Paper / repo tham khảo (xem RESOURCES.md)
-- **TimeGAN** (NeurIPS 2019), **FaultDiffusion** (2025) — sinh chuỗi thời gian.
-- Clone: `git clone https://github.com/jsyoon0823/TimeGAN.git  src/`
+- **TimeGAN** (NeurIPS 2019), **FaultDiffusion** (2025) — sinh chuỗi thời gian (tham khảo paper, đọc online).
 - CWRU official: https://engineering.case.edu/bearingdatacenter/download-data-file
 
 ## Timeline
