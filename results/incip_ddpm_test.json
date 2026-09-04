@@ -1,0 +1,55 @@
+{
+  "dataset": "ims",
+  "n_synth": 3200,
+  "incipient": [
+    0.9,
+    0.95
+  ],
+  "stride_eff": 2449,
+  "ddpm": {
+    "epochs": 60,
+    "T": 200,
+    "batch": 64,
+    "lr": 0.0002
+  },
+  "gate": {
+    "q_low": 0.1,
+    "q_high": 0.9
+  },
+  "rows": [
+    {
+      "n_fault_train": 10,
+      "incipient": "0.9-0.95",
+      "baseline": {
+        "precision": 1.0,
+        "recall": 0.006311717397943601,
+        "f1": 0.012544258978249874,
+        "auc": 0.570994059132357
+      },
+      "ddpm_raw": {
+        "precision": 1.0,
+        "recall": 0.007940547694187111,
+        "f1": 0.015755984244015756,
+        "auc": 0.5744526451525331
+      },
+      "ddpm_gated": {
+        "precision": 1.0,
+        "recall": 0.008856764735824087,
+        "f1": 0.017558022199798184,
+        "auc": 0.5844223257612116
+      },
+      "interp_align_amp": {
+        "precision": 0.9822274881516587,
+        "recall": 0.1265906545861753,
+        "f1": 0.22427630985661468,
+        "auc": 0.6186852103663414
+      },
+      "n_synth_per_variant": 3200,
+      "n_synth_gate_req": 3200,
+      "n_synth_gate_kept": 0,
+      "n_test_fault_incipient": 19646,
+      "n_train_normal": 27600,
+      "f_char": 70.3125
+    }
+  ]
+}

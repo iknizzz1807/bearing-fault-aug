@@ -1,0 +1,24 @@
+{
+  "dataset": "cwru",
+  "gen": "physics",
+  "fault_type": "bpfo",
+  "rotation_hz": 30.0,
+  "depth": 0.5,
+  "n_synth_factor": 3,
+  "before": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "auc": 1.0
+  },
+  "after": {
+    "precision": 0.9983939261206015,
+    "recall": 1.0,
+    "f1": 0.999196317673705,
+    "auc": 1.0
+  },
+  "n_synth": 6000,
+  "n_healthy": 2000,
+  "n_test_fault": 6838,
+  "n_test_normal": 1325
+}

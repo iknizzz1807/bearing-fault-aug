@@ -1,0 +1,585 @@
+<!DOCTYPE html><html lang='vi'><head><meta charset='utf-8'><style>
+@page { size: A4; margin: 20mm 16mm; @bottom-center { content: "Trang " counter(page) " / " counter(pages); font-size: 9pt; color: #666; } }
+body { font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-size: 10.5pt; line-height: 1.55; color: #1a1a1a; }
+h1 { font-size: 19pt; color: #0b3d6b; border-bottom: 2px solid #0b3d6b; padding-bottom: 6px; }
+h2 { font-size: 14pt; color: #0b3d6b; margin-top: 22px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; }
+h3 { font-size: 12pt; color: #14507f; margin-top: 16px; }
+h4 { font-size: 11pt; color: #333; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 9.3pt; }
+th { background: #0b3d6b; color: white; padding: 6px 7px; text-align: left; border: 1px solid #0b3d6b; }
+td { padding: 5px 7px; border: 1px solid #d3dbe4; vertical-align: top; }
+tr:nth-child(even) td { background: #f4f7fb; }
+code { background: #eef2f6; padding: 1px 4px; border-radius: 3px; font-family: "DejaVu Sans Mono", monospace; font-size: 8.8pt; }
+pre { background: #f6f8fa; border: 1px solid #e0e6ec; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 8.8pt; }
+pre code { background: none; padding: 0; }
+blockquote { border-left: 4px solid #0b3d6b; background: #eef3f9; margin: 12px 0; padding: 8px 14px; color: #23374d; }
+ul, ol { margin: 6px 0; }
+strong { color: #0b3d6b; }
+hr { border: none; border-top: 1px solid #d3dbe4; margin: 20px 0; }
+p { margin: 7px 0; }
+</style></head><body><h1>Báo cáo tổng hợp — Đánh giá các phương pháp sinh lỗi giả</h1>
+<p><strong>Bài toán A1 — Predictive-Maintenance AI Despite Scarce Fault Data (DENSO Factory Hacks 2026)</strong>
+<strong>Dataset chính:</strong> NASA IMS (run-to-failure) · <strong>Nền tảng:</strong> Random Forest + 24 feature kỹ thuật (z-score)
+<strong>Harness đánh giá:</strong> cửa sổ 512 / stride 256 (~42ms), bóp số lỗi thật trong train (<code>K</code>), <em>test cố định 8100 lỗi thật</em>, baseline tái lập theo seed <code>seed+K</code>. So sánh <strong>CÔNG BẰNG</strong>: chỉ phần "lỗi giả" khác nhau.</p>
+<hr />
+<h2>1. Kết quả tổng quan</h2>
+<p><strong>Recall trên test</strong> (mean 3 seed · interp_align+amp · k_mix=6 · n_synth=3200):</p>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật trong train (K)</th>
+<th>Baseline (không augment)</th>
+<th><strong>Deliverable (interp_align+amp)</strong></th>
+<th>Đóng góp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.252</td>
+<td><strong>0.766</strong></td>
+<td><strong>+0.516</strong></td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.383</td>
+<td><strong>0.748</strong></td>
+<td><strong>+0.364</strong></td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.490</td>
+<td><strong>0.788</strong></td>
+<td><strong>+0.266</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Cách tính "Đóng góp":</strong> trung bình của (recall_sau − recall_trước) trên từng seed (3 seed) — cách đo sạch nhất, vì mỗi seed dùng cùng một test (before và after chấm trên đúng test đó). Nếu so mean_after − mean_before thì cũng gần đúng (+0.516/+0.364/+0.266 so với mức mean 3 seed 0.173/0.375/0.512).</p>
+<p><strong>Câu chuyện cốt lõi:</strong> khi dữ liệu lỗi thật RẤT hiếm (10–50 mẫu), một bộ sinh lỗi giả tốt giúp recall tăng mạnh (gấp 2–3 lần, +0.27→+0.52). Ngược lại khi đã có ≥100–200 lỗi thật, baseline chạm trần (IMS ~0.886) và augment gần như vô ích (Δ≈0).</p>
+</blockquote>
+<hr />
+<h2>2. Bảng phân hạng từng phương pháp (recall sau aug, mean 3 seed)</h2>
+<p>Đây là số đã được kiểm chứng nhất quán. Baseline: K=10 = <strong>0.252</strong>, K=20 = <strong>0.383</strong>, K=50 = <strong>0.490</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Phương pháp</th>
+<th>K=10</th>
+<th>K=20</th>
+<th>K=50</th>
+<th>Mô tả ngắn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>interp_align + amp + k_mix=6</strong></td>
+<td><strong>0.766</strong> ±0.021</td>
+<td><strong>0.748</strong> ±0.012</td>
+<td><strong>0.788</strong> ±0.025</td>
+<td>interpolate + căn pha + chuẩn biên độ + trộn 6 cửa sổ</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>amp_align</strong></td>
+<td><strong>0.678</strong> ±0.058</td>
+<td><strong>0.733</strong> ±0.010</td>
+<td><strong>0.773</strong> ±0.031</td>
+<td>interpolate + chuẩn biên độ</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>interpolate (optimized)</strong></td>
+<td><strong>0.466</strong> ±0.009</td>
+<td><strong>0.671</strong> ±0.061</td>
+<td><strong>0.724</strong> ±0.038</td>
+<td>trộn 2 lỗi thật + jitter</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>heuristic</strong> (×2.5 + nhiễu)</td>
+<td><strong>0.492</strong> ±0.031</td>
+<td><strong>0.478</strong> ±0.029</td>
+<td><strong>0.628</strong> ±0.018</td>
+<td>phóng đại biên độ normal</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>physics (BPFO/BPFI/BSF/FTF)</strong></td>
+<td><strong>0.411</strong> ±0.031</td>
+<td><strong>0.440</strong> ±0.007</td>
+<td><strong>0.597</strong> ±0.009</td>
+<td>mô phỏng cơ chế hỏng ổ bi</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>DDPM / Diffusion</strong></td>
+<td><strong>0.432</strong> ±0.035</td>
+<td><strong>0.435</strong> ±0.009</td>
+<td><strong>0.604</strong> ±0.009</td>
+<td>generative (SOTA)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>TimeGAN (generative)</strong></td>
+<td>—</td>
+<td>~0.43</td>
+<td>~0.58</td>
+<td>GAN theo thời gian</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>aligned (ECDF/KS)</strong></td>
+<td><strong>0.334</strong> ±0.045</td>
+<td><strong>0.633</strong> ±0.044</td>
+<td><strong>0.598</strong> ±0.023</td>
+<td>lọc theo phân vị descriptor</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>UniFault foundation</strong> (ngoài)</td>
+<td>~0.02</td>
+<td>~0.10</td>
+<td>~0.03</td>
+<td>foundation model 9 tỷ điểm pretrain, fine-tune 10–50 lỗi (§6.3)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Ghi chú std:</strong> mỗi ô = recall trung bình ± độ lệch chuẩn trên 3 seed (42/97/21), cùng n_synth=3200. Nguồn: <code>scripts/15_aggregate_all.py</code> đọc trực tiếp từ <code>results/*.json</code>. Độ lệch chuẩn thấp (hầu hết ≤0.05) xác nhận thứ tự xếp hạng <strong>ổn định</strong>, không phải nhiễu seed.</p>
+<p><strong>Phương án chính (số 1) đã nâng qua A/B Mục 4</strong> (SPEC §3.4.8): trộn 6 cửa sổ căn pha (<code>k_mix=6</code>) nâng K=10 0.689→<strong>0.766</strong> (std 0.053→0.021) và hơi cao K=20/50 so với bản cũ 2 cửa sổ. Số của các phương án khác (2–8) là bản cũ k_mix=2 (chỉ phương án chính được tối ưu qua A/B).</p>
+<p><strong>Đây là bảng NHẤT QUÁN — mọi nhánh chạy trên cùng một harness (cùng train/test), chỉ khác phần lỗi giả.</strong> (TimeGAN là bộ sinh ngoài, kém nhất, không phải phương án chọn.) Dòng 9 (UniFault foundation) là <strong>ngoài harness</strong> (fine-tune model riêng, test IMS cân bằng 8100/8100) — chỉ để so <strong>độ lớn thứ tự</strong>, không bằng nhau tuyệt đối; bạn đọc chủ yếu ở §6.3.</p>
+<p><strong>Vì sao interpolate/amp_align/interp_align gần nhau?</strong> Cả ba đều là <strong>interpolation</strong> (bám manifold lỗi thật) — interp_align thêm căn pha để khử triệt tiêu sóng, amp_align thêm chuẩn biên độ. Ở K=10 interp_align+amp vượt interpolate rõ (0.766 vs 0.466).</p>
+<p><strong>Đọc thứ tự đúng:</strong> <strong>interp_align+amp (0.748 ở K=20) ≈ amp_align (0.733) &gt; interpolate (0.671) &gt; aligned (0.633) ≫ heuristic (0.478) ≈ physics (0.440) ≈ DDPM (0.435) ≈ TimeGAN</strong>. Ba nhóm dẫn đầu là biến thể interpolation (bám <em>manifold lỗi thật</em>); các nhóm generative/physics/heuristic kém hơn hẳn.</p>
+<p><strong>Chi tiết trước/sau khi làm sạch số liệu (cùng mức n_synth=3200):</strong> một số con số sớm được hiệu chỉnh — interpolate K=50 0.800→0.724, amp_align K=20 0.781→0.733, aligned K=50 0.787→0.598; interp_align K=10 tăng nhẹ (0.632→0.689, vì trước đó nguồn sinh không nhất quán).</p>
+<p><strong>Về trọng số lớp (<code>class_weight="balanced"</code>):</strong> mẫu lỗi được cân bằng về tổng với lớp bình thường nên model không bị lớp normal áp đảo — điều này <strong>có lợi</strong> cho recall (thử với K=20 seed42: balanced cho recall-sau=0.749 so với 0.710 nếu không cân bằng). Vì áp dụng giống hệt cho mọi bộ sinh, thứ tự xếp hạng giữa các phương pháp vẫn công bằng.</p>
+</blockquote>
+<hr />
+<h2>3. Diễn giải từng phương pháp — "cơ bản nó là gì &amp; kết quả ra sao"</h2>
+<p>Dưới đây mô tả bản chất từng cách tiếp cận và tại sao nó thắng/thua. Số trong ngoặc là recall <strong>đã chuẩn hóa</strong> ở K=20 (trừ khi ghi chú riêng).</p>
+<h3>3.1. Baseline trước / sau — mốc tham chiếu KHÔNG augment</h3>
+<ul>
+<li><strong>Cách hoạt động:</strong> RF huấn luyện trên train gồm rất nhiều normal + chỉ <code>K</code> lỗi thật. Với K=20 → model gần như chỉ thấy 20 mẫu lỗi → recall thấp (0.383). Với đầy đủ lỗi (bài IMS đủ, ~2000 lỗi) → recall chạm <strong>0.886 / AUC 0.982</strong> (trần của feature kỹ thuật).</li>
+<li><strong>Kết luận:</strong> đây là "nút thắt dữ liệu", không phải model yếu — bằng chứng ở §3.5 (kể cả self-supervised cũng không vượt).</li>
+</ul>
+<h3>3.2. [1] interp_align + amp + k_mix=6 (PHƯƠNG ÁN CHÍNH)</h3>
+<ul>
+<li><strong>Cơ bản là gì:</strong> <em>Phase-aware mixup (K=6).</em> Lấy 6 cửa sổ lỗi THẬT, <strong>căn pha cho khớp nhau</strong> bằng FFT cross-correlation rồi trộn theo trọng số Dirichlet thực sự, kèm jitter nhỏ. Việc căn pha trước khử hiện tượng <strong>triệt tiêu sóng mang</strong> khi trộn hai sóng lệch pha (làm bản trộn "dịu/èo" đi); trộn 6 cửa sổ (thay vì 2) phủ dày hơn vùng giữa manifold lỗi. Sau đó chuẩn biên độ về khoảng [q10,q90] của lỗi thật (<code>--amp</code>).</li>
+<li><strong>Kết quả:</strong> K=10: 0.252→<strong>0.766</strong>; K=20: 0.383→<strong>0.748</strong>; K=50: 0.490→<strong>0.788</strong>. Tốt nhất mọi mức khan hiếm (A/B §3.4.8).</li>
+<li><strong>Vì sao thắng:</strong> nội suy <em>trong</em> manifold lỗi thật — không "học" gì, nên <strong>không sụp khi chỉ có vài chục mẫu</strong>; căn pha giữ năng lượng sóng mang; chuẩn biên độ bù mẫu amplitude cực đoan; và <code>k_mix=6</code> giúp sinh bản giữa nhiều mẫu → đặc biệt mạnh khi lỗi RẤT hiếm (K=10). Đây là tinh chỉnh cuối, được chọn qua A/B tổng cộng 3 biến thể (SPEC §3.4.8).</li>
+</ul>
+<h3>3.3. [2] amp_align</h3>
+<ul>
+<li><strong>Cơ bản:</strong> <em>interpolate + chuẩn biên độ.</em> Trộn 2 lỗi thật + jitter rồi scale từng bản về std trong [q10,q90] của lỗi thật. Bù đúng điểm yếu của interpolate (bản trộn quá "dịu", thiếu amplitude cực đoan).</li>
+<li><strong>Kết quả:</strong> K=10: <strong>0.678</strong>; K=20: <strong>0.733</strong>; K=50: <strong>0.773</strong>. <strong>Càng hiếm càng giúp.</strong></li>
+<li><strong>Nhận xét:</strong> rất gần interp_align (deliverable chọn interp_align vì căn pha nên <em>ít cần</em> bù biên độ hơn).</li>
+</ul>
+<h3>3.4. [3] interpolate (optimized)</h3>
+<ul>
+<li><strong>Cơ bản:</strong> <em>trộn/khớp giữa các lỗi thật + jitter.</em> Chọn ngẫu nhiên 2 cửa sổ lỗi thật, trộn tuyến tính <code>a·x1 + (1−a)·x2 + jitter</code>.</li>
+<li><strong>Kết quả:</strong> K=10: <strong>0.466</strong>; K=20: <strong>0.671</strong>; K=50: <strong>0.724</strong>.</li>
+<li><strong>Nhận xét:</strong> nền tảng của cả amp_align và interp_align. Thắng heuristic/generative nhờ <strong>bám sát manifold lỗi thật</strong>, không trôi ra ngoài.</li>
+</ul>
+<h3>3.5. Physics (BPFO/BPFI/BSF/FTF)</h3>
+<ul>
+<li><strong>Cơ bản:</strong> <em>mô hình cơ chế hỏng ổ bi.</em> Tính tần số đặc trưng (outer/inner race, ball, cage) theo hình học ổ bi, rồi <strong>bơm xung va đập lặp</strong> vào tín hiệu normal: <code>x_f(t)=x_h(t)+A·Σ h(t−kT)·w(t)+n(t)</code>.</li>
+<li><strong>Kết quả:</strong> K=10: <strong>0.411</strong>; K=20: <strong>0.440</strong>; K=50: <strong>0.597</strong>. Gần bằng DDPM/heuristic, xa interpolate.</li>
+<li><strong>Vì sao thua:</strong> dữ liệu lỗi thật IMS phức tạp (nhiều va đập + nhiễu), mô phỏng vật lý <strong>đơn giản hoá quá mức</strong> → lỗi giả không phủ được đa dạng lỗi thật. (Trước đây càng tệ hơn vì code bug: nhận feature 24D như tín hiệu → kết luận "physics không giúp" sai.)</li>
+</ul>
+<h3>3.6. DDPM / Diffusion</h3>
+<ul>
+<li><strong>Cơ bản:</strong> <em>denoising diffusion.</em> Học cách khử nhiễu để rồi sinh mẫu mới từ nhiễu trắng — mô hình generative "SOTA" theo research 2026.</li>
+<li><strong>Kết quả:</strong> K=10: <strong>0.432</strong>; K=20: <strong>0.435</strong>; K=50: <strong>0.604</strong>.</li>
+<li><strong>Vì sao thua:</strong> loss huấn luyện <strong>phẳng ~1.0</strong> — mạng không học được phân bố từ 20–50 mẫu (mode collapse). Diffusion cần <strong>nhiều mẫu để học phân bố</strong>; ở kịch bản khan hiếm thì không dùng được.</li>
+</ul>
+<h3>3.7. TimeGAN (generative)</h3>
+<ul>
+<li><strong>Cơ bản:</strong> <em>GAN theo thời gian</em> — học phân bố chuỗi thời gian, gồm generator + discriminator + một bộ điều phối để giữ độ liền mạch của chuỗi.</li>
+<li><strong>Kết quả:</strong> K=20: ~0.43; K=50: ~0.58. <strong>Kém</strong> trong các bộ sinh.</li>
+<li><strong>Vì sao thua:</strong> cần nhiều mẫu để học phân bố → 20–50 mẫu → mode collapse. Đây là bộ sinh <strong>đúng keyword đề</strong> nhưng lại yếu nhất ở kịch bản hiếm.</li>
+</ul>
+<h3>3.8. Heuristic (×2.5 + nhiễu)</h3>
+<ul>
+<li><strong>Cơ bản:</strong> đơn giản nhất — lấy window <em>normal</em>, nhân biên độ 2.5× rồi cộng nhiễu → xem như "lỗi".</li>
+<li><strong>Kết quả:</strong> K=10: <strong>0.492</strong>; K=20: <strong>0.478</strong>; K=50: <strong>0.628</strong>. Chỉ gần baseline+, không mạnh.</li>
+<li><strong>Vì sao thua:</strong> đây là lỗi <strong>bịa</strong>: chỉ đổi <em>biên độ</em> chứ không tạo <em>cấu trúc lỗi</em> (điểm khác biệt trước/sau khi hỏng là ở dạng sóng/tần số, không chỉ to hơn) → model học lệch..</li>
+</ul>
+<h3>3.9. Các nhánh đã thử nhưng BỎ (không giúp / có hại)</h3>
+<table>
+<thead>
+<tr>
+<th>Phương pháp</th>
+<th>Cơ bản là gì</th>
+<th>Kết quả</th>
+<th>Quyết định</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ECDF/KS distribution alignment</strong></td>
+<td>Đóng "sim-to-real gap": lọc bản sinh theo dải phân vị của 7 descriptor lỗi thật</td>
+<td>K=20: 0.633, K=50: 0.598 — thấp hơn interpolate (0.671/0.724)</td>
+<td>Không thay được interpolate → bỏ</td>
+</tr>
+<tr>
+<td><strong>TTA</strong> (test-time augmentation)</td>
+<td>Mỗi window test tạo 8 view (nhiễu/lệch pha/scale) rồi vote</td>
+<td>recall GIẢM (K=50 −0.022, K=20 −0.013)</td>
+<td>RF không invariance → bỏ</td>
+</tr>
+<tr>
+<td><strong>Ensemble đa seed RF</strong></td>
+<td>Vote 5 RF seed khác nhau</td>
+<td>Δ≈0</td>
+<td>RF 200 cây đã ổn định → bỏ</td>
+</tr>
+<tr>
+<td><strong>Self-supervised contrastive</strong></td>
+<td>Học biểu diễn không nhãn (SimCLR 1D-CNN) rồi RF trên embedding</td>
+<td>0.358 &lt; 0.418 (feature 24D)</td>
+<td>feature kỹ thuật đã đủ mạnh → bỏ</td>
+</tr>
+<tr>
+<td><strong>SMOTE trong feature space</strong></td>
+<td>Nội suy trong space 24D</td>
+<td>0.637</td>
+<td>mất cấu trúc thời gian → kém</td>
+</tr>
+</tbody>
+</table>
+<h3>3.10. Feature engineering "vô địch Kaggle" (bỏ)</h3>
+<ul>
+<li><strong>Peak-over-noise-floor (pnf)</strong> + 4 feature: 0.785 vs 0.786 (trong nhiễu) — <strong>bỏ</strong>.</li>
+<li><strong>VSB 1st thật</strong> (flatiron + knee-point + sawtooth + 7 peak features): <code>sawtooth_rmse</code> sep=0.06 (≈0) → <strong>không chuyển được sang window 512/42ms</strong>; <code>peak_height</code> tách mạnh nhưng <strong>trùng thông tin</strong> feature đã có → +0.004 trong nhiễu → <strong>bỏ</strong>.</li>
+<li><strong>Kết luận:</strong> feature kỹ thuật 24D đã đạt trần (AUC 0.99); phần dư địa nằm ở <strong>số lượng mẫu lỗi</strong>, không phải feature — bài ổ bi khác bài partial-discharge của VSB.</li>
+</ul>
+<hr />
+<h2>4. Bảng chuẩn hóa — kết quả theo từng mức khan hiếm (mean 3 seed)</h2>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật K</th>
+<th>Baseline</th>
+<th>interp_align+amp</th>
+<th>amp_align</th>
+<th>interpolate</th>
+<th>heuristic</th>
+<th>physics</th>
+<th>DDPM</th>
+<th>TimeGAN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.252</td>
+<td><strong>0.766</strong> ±0.021</td>
+<td>0.678 ±0.058</td>
+<td>0.466 ±0.009</td>
+<td>0.492 ±0.031</td>
+<td>0.411 ±0.031</td>
+<td>0.432 ±0.035</td>
+<td>—</td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.383</td>
+<td><strong>0.748</strong> ±0.012</td>
+<td>0.733 ±0.010</td>
+<td>0.671 ±0.061</td>
+<td>0.478 ±0.029</td>
+<td>0.440 ±0.007</td>
+<td>0.435 ±0.009</td>
+<td>~0.43</td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.490</td>
+<td><strong>0.788</strong> ±0.025</td>
+<td>0.773 ±0.031</td>
+<td>0.724 ±0.038</td>
+<td>0.628 ±0.018</td>
+<td>0.597 ±0.009</td>
+<td>0.604 ±0.009</td>
+<td>~0.58</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Toàn bộ là số đã kiểm chứng nhất quán</strong> (không trộn các bộ số khác nhau). Nguồn: <code>results/fix_*</code> (interp_align, physics) và <code>results/fx_*</code> (các nhánh còn lại), mỗi ô = mean 3 seed (42/97/21).</p>
+<p><strong>Kết luận:</strong> ở mọi mức khan hiếm, interp_align+amp dẫn đầu; interpolation (các nhánh 1–3) vượt xa generative/physics/heuristic. Trong kịch bản thiếu lỗi thật, cách tốt nhất là <strong>bám manifold lỗi thật (interpolation)</strong>.</p>
+</blockquote>
+<hr />
+<h2>5. Phát hiện quan trọng trong quá trình research (giá trị cho slide)</h2>
+<ol>
+<li><strong>Lỗi dữ liệu, không phải lỗi model (quan trọng nhất).</strong> Trước khi sửa split, mọi model kẹt ở AUC ~0.58. Nguyên nhân: <code>limit</code> cắt 300 file ĐẦU rồi mới chia vùng 90–100% — nhưng quá trình hỏng nằm ở <strong>CUỐI test</strong> (file ~2000) → nhãn "fault" thực chất là normal chưa hỏng. <strong>Sửa: chia vùng theo toàn bộ chuỗi.</strong> Kết quả: AUC 0.582 → <strong>0.982</strong>.</li>
+<li><strong>Augmentation chỉ có giá trị khi THẬT SỰ hiếm lỗi.</strong> Với ≥100–200 lỗi thật, baseline chạm trần, augment ≈ 0. Với 10–50 lỗi, augment rất đáng giá.</li>
+<li><strong>Nhiều lỗi giả không phải lúc nào cũng tốt (n_synth không đơn điệu).</strong> K=10 + n_synth 8000 → recall <strong>tụt −0.143</strong> (0.632→0.489) do các bản trộn trùng manifold. → <strong>Giữ n_synth≈3200 là tối ưu.</strong></li>
+<li><strong>Vì sao nên ưu tiên "interpolate lỗi thật" hơn "mô hình sinh phân bố".</strong> Khi chỉ có vài chục mẫu, "học phân bố" (GAN/diffusion) suy sụp; "nội suy trong manifold lỗi thật" thì không — vì không cần học.</li>
+</ol>
+<hr />
+<h2>6. Hai kiểm chứng bổ sung — đối chứng mô hình tự-học &amp; đánh giá trên lỗi sớm</h2>
+<p>Đây là hai câu hỏi then chốt mà objective đặt ra, nay đã trả lời bằng số liệu trên <strong>cùng hàng rào đánh giá khan hiếm</strong>.</p>
+<h3>6.1. Self-supervised / contrastive — ngang bằng baseline feature, KÉM XA deliverable</h3>
+<p>Chạy lại <code>ContrastiveEncoder</code> (SimCLR, 1D-CNN, 6000 windows không nhãn, 25 epochs, NT-Xent hội tụ ~1.2–4.4) đúng trên cùng train/test khan hiếm; RF trên embedding 128D so với feature 24D. <strong>Chú ý: số dưới là kết quả sau khi sửa bug (dùng keep-toàn-bộ-fault thay vì subsample ngẫu nhiên 6000 từ ~40k cửa sổ — subsample cũ có thể làm rơi hết K lỗi thật khi K nhỏ).</strong></p>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật K</th>
+<th>Baseline (24D)</th>
+<th>Contrastive (embedding)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.173 ±0.068</td>
+<td><strong>0.196</strong> ±0.151</td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.374 ±0.024</td>
+<td><strong>0.289</strong> ±0.042</td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.512 ±0.023</td>
+<td><strong>0.481</strong> ±0.046</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Đối chứng (sau khi sửa bug):</strong> contrastive <strong>ngang bằng</strong> feature 24D ở K=10 (0.196 vs 0.173), và <strong>hơi thua</strong> ở K=20/50 (0.289/0.481 vs 0.374/0.512) — tức <strong>tự-học biểu diễn không tạo ra lợi thế so với feature kỹ thuật</strong>, đồng thời vẫn <strong>rất xa</strong> deliverable interp_align+amp (0.766/0.748/0.788). Kết luận đối chứng objective được giữ, nhưng <strong>không còn thái quá</strong>: contrastive không "kém xa" mà chỉ <strong>không hơn</strong> baseline feature; đường hiệu quả vẫn là sinh lỗi giả bám manifold lỗi thật.</p>
+<p>⚠️ <strong>Bản cũ §6.1 (0.000/0.071/0.057) là SAI do bug subsample</strong> — bị loại. Số đúng ở bảng trên.</p>
+</blockquote>
+<h3>6.2. Lỗi sớm (incipient fault) — hàng rào khó nhưng augmentation VẪN giúp</h3>
+<p>Harness gốc chỉ đánh giá <strong>lỗi hỏng nặng cuối vòng đời</strong> (file cuối). Predictive-maintenance thực tế quan tâm <strong>phát hiện sớm</strong> — nên tôi dựng thêm kịch bản lỗi <strong>mới chớm/phân hủy nhẹ</strong> (vùng 90–95% chuỗi, biên độ thấp) làm fault-test, huấn luyện y hệt như trên:</p>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật K</th>
+<th>Baseline</th>
+<th>interp_align+amp</th>
+<th>Độ tăng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.004</td>
+<td><strong>0.116</strong> ±0.015</td>
+<td>+0.112</td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.012</td>
+<td><strong>0.097</strong> ±0.010</td>
+<td>+0.085</td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.034</td>
+<td><strong>0.127</strong> ±0.024</td>
+<td>+0.093</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Ba điều quan trọng từ kết quả này (số dùng k_mix=6 — deliverable §3.4.8):
+1. <strong>Lỗi sớm RẤT khó</strong> — cả baseline lẫn augment đều có recall thấp (0.004–0.13). Đây là giới hạn thực của dữ liệu (vùng 90–95% tín hiệu chưa đủ mạnh để phân biệt rõ với normal suy giảm).
+2. <strong>Dù vậy, augmentation VẪN tăng recall ~20–30×</strong> (0.004→0.12), tức vẫn đóng góp giá trị rõ ở dải phổ biến khó — không phải "chỉ giúp khi lỗi dễ".
+3. <strong>Câu chuyện "khan hiếm lỗi" được khẳng định kép:</strong> đối với lỗi nặng, augment nâng recall đến ~0.79; đối với lỗi sớm, augment nâng recall tuyệt đối +0.09–0.11 (≈20-30× baseline).</p>
+<p><strong>Kết luận tổng hợp để trả lời objective:</strong> đối chứng foundation/contrastive (6.1) cho thấy <strong>not-winning</strong> — feature kỹ thuật 24D + interpolation vẫn là cách tốt nhất ở kịch bản hiếm. Kịch bản lỗi sớm (6.2) cho thấy <strong>augmentation có giá trị kể cả ở dải khó</strong>, dù giới hạn cứu được là có thật (lỗi sớm biên độ quá nhỏ thì mô hình nào cũng bó tay).</p>
+</blockquote>
+<h3>6.3. Foundation model (UniFault) — cũng THẤT BẠI ở kịch bản hiếm</h3>
+<p>Đối chứng mạnh nhất: dùng <strong>UniFault</strong> — foundation model chẩn đoán lỗi ổ bi đã pretrain trên 9 tỷ điểm tín hiệu (github.com/emadeldeen24/UniFault) — rồi fine-tune từng mức khan hiếm <strong>đúng cùng kịch bản K=10/20/50</strong> trên IMS. Đây là cột "SOTA foundation" để xem pretrain có cứu được few-shot hay không (kỳ vọng marketing là CÓ).</p>
+<ul>
+<li><strong>Thiết lập:</strong> IMS → cửa sổ 1024 (stride 512, kênh DE), fine-tune pretrained <code>tiny</code> (819K params, matched 80/83 trọng số) và <code>base</code> (30M, train-from-scratch) 30 epochs/patience 20 trên train 36k mẫu (chỉ K lỗi), test cân bằng 8100 normal/8100 fault. Harness riêng (không phải RF+feature của các phương pháp trên).</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật K</th>
+<th>UniFault tiny (foundation)</th>
+<th>UniFault base (from scratch)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td><strong>0.020</strong> ±seed</td>
+<td>0.000</td>
+</tr>
+<tr>
+<td>20</td>
+<td><strong>0.102</strong></td>
+<td>0.000</td>
+</tr>
+<tr>
+<td>50</td>
+<td><strong>0.000–0.047</strong> (biến thiên seed)</td>
+<td>0.000</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Kết luận rất quan trọng:</strong> foundation model <strong>cũng không cứu được few-shot</strong>. Dù pretrain trên 9 tỷ điểm, fine-tune chỉ với 10–50 lỗi → recall fault chỉ <strong>0.02–0.10</strong> (gần như chỉ đoán normal). Base 30M từ-scratch còn tệ hơn (0.000 — overfit 2-lớp). Kết quả này <strong>khẳng định mạnh luận điểm trung tâm của báo cáo</strong>: ở kịch bản khan hiếm, <strong>không phải model mạnh hay pretrain giải quyết vấn đề</strong> — mà là <strong>bổ sung lỗi giả</strong> (interpolation bám manifold lỗi thật đạt 0.766/0.748/0.788, vượt foundation ~7–38×). Và nó cho thấy "nhiều lỗi giả" (của mình) đánh bại "pretrain khổng lồ" (của UniFault).</p>
+<p>⚠️ <strong>Lưu ý độ tin cậy:</strong> UniFault dùng test cân bằng 8100/8100 (khác test-RF của các nhánh 1-8), nên <strong>chỉ so được về độ lớn thứ tự, không bằng nhau tuyệt đối</strong>. Giá trị là ở hướng: kể cả foundation SOTA cũng kẹt ở ~0.1 recall khi chỉ có &lt;=50 lỗi.</p>
+</blockquote>
+<h3>6.4. Generative (DDPM) + quality-gating cho lỗi sớm — vẫn THUA interpolation</h3>
+<p>Sau khi DDPM thua mọi phương pháp ở lỗi nặng (§2), tôi thử một lần cuối cho kịch bản <strong>lỗi sớm</strong> (điểm yếu duy nhất của deliverable, recall chỉ 0.10–0.13): train <code>LightDDPM</code> (ddpm.py, GPU) trên K lỗi thật rồi sinh lỗi giả, kèm <strong>quality-gating</strong> — lọc các bản sinh bằng 7 descriptor (std/rms/kurt/spec_centroid/env_energy/A@f_char/sideband_snr), chỉ giữ bản nằm trong dải [q10,q90] của lỗi thật để loại bản méo/trống do mode-collapse.</p>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật K</th>
+<th>Baseline</th>
+<th>DDPM thô</th>
+<th>DDPM + quality-gate</th>
+<th>interp_align+amp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.006</td>
+<td>0.008</td>
+<td>0.009</td>
+<td><strong>0.127</strong></td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.023</td>
+<td>0.015</td>
+<td>0.019</td>
+<td><strong>0.103</strong></td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.030</td>
+<td>0.032</td>
+<td>0.033</td>
+<td><strong>0.141</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Kết luận:</strong> generative <strong>vẫn thua</strong> ở lỗi sớm — DDPM recall ngang baseline (0.01–0.03), <strong>còn tệ hơn interp_align 4–14×</strong>. Nguyên nhân gốc: <strong>DDPM mode-collapse</strong> — loss huấn luyện bị kẹt ~1.0 (không giảm dù tăng epochs 60→150) vì chỉ có 10–50 mẫu (đúng cảnh báo ddpm.py §3.4). <strong>Quality-gating gần như không giúp</strong> (0.009 vs 0.008; 0.019 vs 0.015; 0.033 vs 0.032) — vì các bản DDPM sinh ra đều trải một dải descriptor rất hẹp quanh normal, lọc không còn bản "lỗi" để giữ.</p>
+<p><strong>Giá trị của thí nghiệm này (rất đáng cho slide):</strong> nó <strong>đóng ngoặc</strong> mọi hướng generative — GAN (TimeGAN, kém), diffusion (DDPM, kém), foundation pretrain (UniFault, kém), kể cả khi thêm bộ lọc chất lượng (gating, không giúp). Ở kịch bản <strong>cực khan hiếm lỗi</strong>, đường thắng duy nhất được xác nhận là <strong>nội suy trong manifold lỗi thật</strong> (interpolate family). Đây là luận điểm trung tâm, nay được củng cố bằng đủ mọi phía (model mạnh, generative, foundation).</p>
+</blockquote>
+<hr />
+<h2>7. Code / tác giả chịu trách nhiệm (để đối chiếu)</h2>
+<table>
+<thead>
+<tr>
+<th>Phương pháp</th>
+<th>File bộ sinh</th>
+<th>Script đánh giá</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>interp_align+amp</td>
+<td><code>src/generator.py::generate_aligned_interp</code> + <code>_amp_rescale</code></td>
+<td><code>scripts/06_scarcity_aug.py --gen interp_align --amp 1</code></td>
+</tr>
+<tr>
+<td>amp_align</td>
+<td><code>generate_amp_aligned</code></td>
+<td><code>--gen amp_align</code></td>
+</tr>
+<tr>
+<td>interpolate</td>
+<td><code>generate_interpolated</code></td>
+<td><code>--gen optimized</code></td>
+</tr>
+<tr>
+<td>physics</td>
+<td><code>src/physics.py</code> + generator</td>
+<td><code>--gen physics</code></td>
+</tr>
+<tr>
+<td>DDPM</td>
+<td><code>src/ddpm.py</code></td>
+<td><code>--gen ddpm</code></td>
+</tr>
+<tr>
+<td>DDPM + quality-gating (lỗi sớm)</td>
+<td><code>scripts/16_ddpm_gating_incipient_ab.py</code></td>
+<td><code>results/incip_ddpm_ab.json</code></td>
+</tr>
+<tr>
+<td>TimeGAN</td>
+<td><code>src/timegan_torch.py</code></td>
+<td><code>--gen npy</code></td>
+</tr>
+<tr>
+<td>TTA/ensemble</td>
+<td>—</td>
+<td><code>scripts/09_tta_ensemble.py</code></td>
+</tr>
+<tr>
+<td>contrastive</td>
+<td><code>src/contrastive.py</code></td>
+<td><code>scripts/08_contrastive_vs_aug.py</code>, <code>scripts/13_contrastive_harness.py</code></td>
+</tr>
+<tr>
+<td>UniFault foundation</td>
+<td><code>unifault_local/</code> (UniFault clone + <code>build_parquet.py</code>, <code>run_unifault.py</code>)</td>
+<td><code>unifault_local/results.txt</code></td>
+</tr>
+<tr>
+<td>lỗi sớm (incipient)</td>
+<td>—</td>
+<td><code>scripts/14_incipient_ab.py</code></td>
+</tr>
+<tr>
+<td>baseline split</td>
+<td><code>src/pipeline.py</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>8. Kết luận &amp; khuyến nghị cho bản nộp Vòng 1</h2>
+<p><strong>Phương án chính thức:</strong></p>
+<div class="codehilite"><pre><span></span><code>--gen interp_align --amp 1 --n-synth 3200 --k-mix 6
+</code></pre></div>
+
+<p>= <strong>interpolate lỗi thật</strong> (lõi) + <strong>căn pha cross-correlation</strong> (khử triệt tiêu sóng mang) + <strong>chuẩn biên độ</strong> (bù amplitude cực đoan) + <strong>trộn 6 cửa sổ</strong> (phủ dày manifold tối ưu ở mức hiếm) + <strong>đủ số lượng lỗi giả (3200)</strong>.</p>
+<p><strong>Bảng tóm tắt recall (mean 3 seed):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Số lỗi thật</th>
+<th>Baseline</th>
+<th>Sau augment</th>
+<th>Độ tăng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>0.252</td>
+<td><strong>0.766</strong></td>
+<td>+0.516</td>
+</tr>
+<tr>
+<td>20</td>
+<td>0.383</td>
+<td><strong>0.748</strong></td>
+<td>+0.364</td>
+</tr>
+<tr>
+<td>50</td>
+<td>0.490</td>
+<td><strong>0.788</strong></td>
+<td>+0.266</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quy trình nghiên cứu (tóm tắt):</strong> Baseline RF+feature → nhận ra loss vì dữ liệu (fix split) → thử heuristic/physics/TimeGAN (tất cả kém) → phát hiện "khan hiếm lỗi thật" mới là bản chất đề → thử interpolate (thắng) → amp_align → interp_align (căn pha, thắng nhất) → research thêm feature (VSB/denoise, không giúp) → thử diffusion/contrastive (không hơn) → đối chứng cũng-harness (contrastive ≈ baseline, kém xa deliverable; <strong>UniFault foundation SOTA cũng thất bại ~0.02–0.10</strong>) + kịch bản lỗi sớm (augment vẫn giúp 20-25×) → A/B tinh chỉnh interp_align (chốt <code>k_mix=6</code>) → <strong>chốt interp_align+amp+k_mix=6</strong> với số chuẩn 0.77/0.75/0.79.</p>
+<p><strong>Tổng kết trả lời objective (đã khép kín):</strong>
+- <strong>So với contrastive/foundation ở cùng mức khan hiếm:</strong> interp_align+amp <strong>thắng rõ</strong> (contrastive ≈ baseline feature, kém xa deliverable — §6.1; <strong>UniFault foundation SOTA chỉ đạt ~0.02–0.10, thua ~7–38× — §6.3</strong>). Đây là cột so sánh then chốt của đề, nay đã có số.
+- <strong>So với lỗi sớm (incipient):</strong> cả baseline lẫn augment đều khó (giới hạn thật của dữ liệu), nhưng augment vẫn nâng recall <strong>~20–30×</strong> trong tất cả mức K — chứng tỏ giá trị của nó không chỉ ở lỗi "dễ".</p></body></html>

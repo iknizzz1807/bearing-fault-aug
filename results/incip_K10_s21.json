@@ -1,0 +1,29 @@
+{
+  "dataset": "ims",
+  "n_synth": 3200,
+  "incipient": [
+    0.9,
+    0.95
+  ],
+  "stride_eff": 2449,
+  "rows": [
+    {
+      "n_fault_train": 10,
+      "incipient": "0.9-0.95",
+      "baseline": {
+        "precision": 1.0,
+        "recall": 0.002595948284638094,
+        "f1": 0.00517845357160989,
+        "auc": 0.5689611692432242
+      },
+      "interp_align_amp": {
+        "precision": 0.9917446340121079,
+        "recall": 0.09172350605721266,
+        "f1": 0.16791688021245865,
+        "auc": 0.6215207778876591
+      },
+      "n_test_fault_incipient": 19646,
+      "n_train_normal": 27600
+    }
+  ]
+}

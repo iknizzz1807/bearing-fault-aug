@@ -1,0 +1,27 @@
+{
+  "dataset": "ims",
+  "gen": "interp_align",
+  "fault_type": "bpfo",
+  "n_synth": 3200,
+  "rows": [
+    {
+      "n_fault_train": 50,
+      "n_train_normal": 28350,
+      "n_test_fault": 8100,
+      "before": {
+        "precision": 0.9997531473710195,
+        "recall": 0.5,
+        "f1": 0.6666118014978191,
+        "auc": 0.9498970202713
+      },
+      "after": {
+        "precision": 0.9787265474959373,
+        "recall": 0.8179012345679012,
+        "f1": 0.8911157441657139,
+        "auc": 0.9755746913580247
+      },
+      "d_recall": 0.3179012345679012,
+      "d_auc": 0.025677671086724696
+    }
+  ]
+}

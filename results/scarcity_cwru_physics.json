@@ -1,0 +1,103 @@
+{
+  "dataset": "cwru",
+  "gen": "physics",
+  "fault_type": "bpfo",
+  "n_synth": 600,
+  "rows": [
+    {
+      "n_fault_train": 200,
+      "n_train_normal": 4637,
+      "n_test_fault": 6837,
+      "before": {
+        "precision": 1.0,
+        "recall": 0.9995612110574813,
+        "f1": 0.999780557384244,
+        "auc": 1.0
+      },
+      "after": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "auc": 1.0
+      },
+      "d_recall": 0.0004387889425186975,
+      "d_auc": 0.0
+    },
+    {
+      "n_fault_train": 100,
+      "n_train_normal": 4637,
+      "n_test_fault": 6837,
+      "before": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "auc": 1.0
+      },
+      "after": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "auc": 1.0
+      },
+      "d_recall": 0.0,
+      "d_auc": 0.0
+    },
+    {
+      "n_fault_train": 50,
+      "n_train_normal": 4637,
+      "n_test_fault": 6837,
+      "before": {
+        "precision": 1.0,
+        "recall": 0.9695772999853737,
+        "f1": 0.9845536907767711,
+        "auc": 1.0
+      },
+      "after": {
+        "precision": 1.0,
+        "recall": 0.9667983033494223,
+        "f1": 0.9831189112813267,
+        "auc": 1.0
+      },
+      "d_recall": -0.0027789966359513807,
+      "d_auc": 0.0
+    },
+    {
+      "n_fault_train": 20,
+      "n_train_normal": 4637,
+      "n_test_fault": 6837,
+      "before": {
+        "precision": 1.0,
+        "recall": 0.9994149480766418,
+        "f1": 0.9997073884418435,
+        "auc": 1.0
+      },
+      "after": {
+        "precision": 1.0,
+        "recall": 0.9997074740383209,
+        "f1": 0.9998537156231715,
+        "auc": 1.0
+      },
+      "d_recall": 0.00029252596167916867,
+      "d_auc": 0.0
+    },
+    {
+      "n_fault_train": 5,
+      "n_train_normal": 4637,
+      "n_test_fault": 6837,
+      "before": {
+        "precision": 1.0,
+        "recall": 0.8758227292672225,
+        "f1": 0.9338011695906433,
+        "auc": 1.0
+      },
+      "after": {
+        "precision": 1.0,
+        "recall": 0.8750914143630247,
+        "f1": 0.9333853354134165,
+        "auc": 1.0
+      },
+      "d_recall": -0.0007313149041977551,
+      "d_auc": 0.0
+    }
+  ]
+}

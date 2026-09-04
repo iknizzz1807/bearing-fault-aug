@@ -1,0 +1,19 @@
+{
+  "dataset": "cwru",
+  "gen": "heuristic",
+  "before": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "auc": 1.0
+  },
+  "after": {
+    "precision": 0.9997076023391813,
+    "recall": 1.0,
+    "f1": 0.9998537797923673,
+    "auc": 1.0
+  },
+  "n_synth": 4637,
+  "n_test_fault": 6838,
+  "n_test_normal": 1325
+}

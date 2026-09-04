@@ -1,0 +1,24 @@
+{
+  "dataset": "ims",
+  "gen": "physics",
+  "fault_type": "bpfo",
+  "rotation_hz": 30.0,
+  "depth": 0.8,
+  "n_synth_factor": 3,
+  "before": {
+    "precision": 0.41888297872340424,
+    "recall": 0.478515625,
+    "f1": 0.4467179902755267,
+    "auc": 0.5846638755192832
+  },
+  "after": {
+    "precision": 0.41637274921106365,
+    "recall": 0.4867621527777778,
+    "f1": 0.44882441220610303,
+    "auc": 0.5703013855733989
+  },
+  "n_synth": 6000,
+  "n_healthy": 2000,
+  "n_test_fault": 4608,
+  "n_test_normal": 8064
+}

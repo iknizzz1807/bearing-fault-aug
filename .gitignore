@@ -1,0 +1,71 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== Virtual environments =====
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+
+# ===== Env / secrets =====
+.env
+.env.*
+
+# ===== IDE / OS =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Dataset raw (tải bằng scripts/download_data.sh) =====
+data/
+!data/*.md
+
+# ===== Binary dataset formats =====
+*.mat
+*.h5
+*.csv
+*.npz
+*.npy
+*.parquet
+
+# ===== Archives =====
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# ===== Reference papers (tải bằng scripts/download_papers.sh) =====
+papers/
+
+# ===== Model weights / checkpoints (clone + local) =====
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+
+# ===== UniFault local experiment (giữ code + results, bỏ phần nặng) =====
+unifault_local/checkpoints/
+unifault_local/data/
+unifault_local/pretrained_models/
+unifault_local/__pycache__/
+
+# ===== Editor tooling =====
+.editutor/

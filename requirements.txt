@@ -1,0 +1,19 @@
+# core
+numpy>=1.26
+pandas>=2.1
+scipy==1.13.1        # CWRU .mat v5 cần scipy <= 1.13; bản mới hơn (1.14+) đọc lỗi
+matplotlib>=3.8
+seaborn>=0.13
+tqdm>=4.66
+
+# ml
+scikit-learn>=1.3
+xgboost>=2.0
+
+# deep learning
+torch>=2.1
+pytorch-lightning>=2.1
+
+# reproducibility
+joblib>=1.3
+ipykernel>=6.28

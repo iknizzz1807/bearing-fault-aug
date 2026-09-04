@@ -1,0 +1,6 @@
+ tiny_foundation K=10  fault_recall=0.0205
+ tiny_foundation K=20  fault_recall=0.1019
+ tiny_foundation K=50  fault_recall=  0.0
+    base_scratch K=10  fault_recall=  0.0
+    base_scratch K=20  fault_recall=  0.0
+    base_scratch K=50  fault_recall=  0.0
