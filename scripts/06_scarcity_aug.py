@@ -139,7 +139,7 @@ def _raw_train_windows(signals_n: list[list[np.ndarray]], signals_f: list[list[n
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", choices=["ims", "cwru"], default="ims")
-    ap.add_argument("--gen", choices=["heuristic", "physics", "optimized", "aligned", "amp_align", "interp_align", "spectral_mixup", "physics_mixup", "ddpm", "npy"], default="optimized",
+    ap.add_argument("--gen", choices=["heuristic", "physics", "optimized", "aligned", "amp_align", "interp_align", "spectral_mixup", "physics_mixup", "physics_align", "ddpm", "npy"], default="optimized",
                     help="nguồn lỗi giả dùng để tăng cường (optimized = interpolate | aligned = ECDF/KS align | amp_align = interpolate+chuẩn amplitude | interp_align = interpolate+căn pha cross-correlation | spectral_mixup = trộn magnitude phổ+bơm hài | physics_mixup = interp_align trộn physics | ddpm = diffusion)")
     ap.add_argument("--amp", type=float, default=0.0,
                     help=">0 thì sau khi sinh sẽ chuẩn biên độ (std về phân bố lỗi thật như amp_align), áp cho interp_align/spectral_mixup (0 = tắt)")
@@ -149,6 +149,8 @@ def main():
                     help="số cửa sổ lỗi thật trộn trong interp_align (2 = hành vi cũ; 6 = mặc định mới, chọn qua A/B SPEC §3.4.8)")
     ap.add_argument("--phys-frac", type=float, default=0.30,
                     help="tỉ lệ cửa sổ lấy từ physics-injection trong physics_mixup (0..1)")
+    ap.add_argument("--blend", type=float, default=0.25,
+                    help="physics_align: tỉ lệ giữ lỗi physics so với nền normal (1=thuần physics, thấp hơn=giảm độ nhọn khớp lỗi thật)")
     ap.add_argument("--harm-inject", type=float, default=0.0,
                     help="cường độ bơm hài vật lý tại k*f_char cho spectral_mixup (0..1, 0 = tắt)")
     ap.add_argument("--gen-npy", type=str, default=str(RESULTS / "synthetic_faults.npy"),
@@ -222,6 +224,22 @@ def main():
             if args.verbose:
                 print(f"  [optimized] interpolate {len(fault_raw)} lỗi thật → "
                       f"{len(X_syn)} bản (f_char={gen.f_char:.1f}Hz depth={gen.depth:.2f})")
+        elif args.gen == "physics_align":
+            # PHYSICS nhƯNG chuẩn theo lỗi THẬT (fix SPEC §3.4.6): bơm xung ở tần số
+            # cộng hưởng + depth học từ lỗi thật, blend bớt nền để giảm độ nhọn, rồi
+            # _amp_rescale về [q10,q90] std lỗi thật. Xem generator.generate_physics_aligned.
+            norm_raw, fault_raw = _raw_train_windows(signs_n, signs_f, args.win,
+                                                     stride_eff, n_fault, fault_split_rng)
+            gen = OptimizedFaultGenerator(fs=pipe.FS)
+            gen.calibrate(fault_raw, norm_raw)
+            synth_sig = gen.generate_physics_aligned(norm_raw, fault_raw, args.n_synth,
+                                                     gen_rng, blend=args.blend)
+            raw = ft.raw_features(synth_sig, fs=pipe.FS)
+            X_syn = ft.zscore(raw, d["scaler_mu"], d["scaler_sd"])
+            y_syn = np.ones(len(X_syn))
+            if args.verbose:
+                print(f"  [physics_align] {len(fault_raw)} lỗi thật → {len(X_syn)} bản "
+                      f"(f_char={gen.f_char:.1f}Hz blend={args.blend})")
         elif args.gen == "aligned":
             # ECDF/KS DISTRIBUTION ALIGNMENT (SPEC §3.4.2): physics + interpolate làm
             # POOL, rồi lọc các bản có descriptor nằm trong dải phân vị lỗi THẬT

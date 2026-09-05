@@ -61,6 +61,7 @@ Dưới đây mô tả bản chất từng cách tiếp cận và tại sao nó 
 ### 3.1. Baseline trước / sau — mốc tham chiếu KHÔNG augment
 - **Cách hoạt động:** RF huấn luyện trên train gồm rất nhiều normal + chỉ `K` lỗi thật. Với K=20 → model gần như chỉ thấy 20 mẫu lỗi → recall thấp (0.383). Với đầy đủ lỗi (bài IMS đủ, ~2000 lỗi) → recall chạm **0.886 / AUC 0.982** (trần của feature kỹ thuật).
 - **Kết luận:** đây là "nút thắt dữ liệu", không phải model yếu — bằng chứng ở §3.5 (kể cả self-supervised cũng không vượt).
+- **AE (unsupervised, không cần nhãn lỗi):** AE chỉ học "bình thường" + chấm ngưỡng P99 → IMS **precision 0.984 / recall 0.657 / F1 0.788 / AUC 0.912**. Lưu ý số này là **tái chạy sau khi sửa bug split** (bản trước ghi 0.52/0.03 là sai do leak) — baseline hữu ích cho kịch bản "chưa có nhãn lỗi".
 
 ### 3.2. [1] interp_align + amp + k_mix=6 (PHƯƠNG ÁN CHÍNH)
 - **Cơ bản là gì:** *Phase-aware mixup (K=6).* Lấy 6 cửa sổ lỗi THẬT, **căn pha cho khớp nhau** bằng FFT cross-correlation rồi trộn theo trọng số Dirichlet thực sự, kèm jitter nhỏ. Việc căn pha trước khử hiện tượng **triệt tiêu sóng mang** khi trộn hai sóng lệch pha (làm bản trộn "dịu/èo" đi); trộn 6 cửa sổ (thay vì 2) phủ dày hơn vùng giữa manifold lỗi. Sau đó chuẩn biên độ về khoảng [q10,q90] của lỗi thật (`--amp`).
@@ -77,10 +78,11 @@ Dưới đây mô tả bản chất từng cách tiếp cận và tại sao nó 
 - **Kết quả:** K=10: **0.466**; K=20: **0.671**; K=50: **0.724**.
 - **Nhận xét:** nền tảng của cả amp_align và interp_align. Thắng heuristic/generative nhờ **bám sát manifold lỗi thật**, không trôi ra ngoài.
 
-### 3.5. Physics (BPFO/BPFI/BSF/FTF)
+### 3.5. Physics (BPFO/BPFI/BSF/FTF) — và bản recalibrate `physics_align`
 - **Cơ bản:** *mô hình cơ chế hỏng ổ bi.* Tính tần số đặc trưng (outer/inner race, ball, cage) theo hình học ổ bi, rồi **bơm xung va đập lặp** vào tín hiệu normal: `x_f(t)=x_h(t)+A·Σ h(t−kT)·w(t)+n(t)`.
-- **Kết quả:** K=10: **0.411**; K=20: **0.440**; K=50: **0.597**. Gần bằng DDPM/heuristic, xa interpolate.
-- **Vì sao thua:** dữ liệu lỗi thật IMS phức tạp (nhiều va đập + nhiễu), mô phỏng vật lý **đơn giản hoá quá mức** → lỗi giả không phủ được đa dạng lỗi thật. (Trước đây càng tệ hơn vì code bug: nhận feature 24D như tín hiệu → kết luận "physics không giúp" sai.)
+- **Kết quả:** bộ sinh CŨ (`src/physics.py`, `depth` + tần số va đập ~600Hz cố định) — K=10: **0.411**, K=20: **0.440**, K=50: **0.597**. Gần bằng DDPM/heuristic, xa interpolate.
+- **Vì sao thua (đã chẩn đoán, không phải bug):** đo descriptor cho thấy lỗi physics sinh ra **quá "mềm"** so với lỗi IMS thật — std **0.51×**, env_energy **0.31×**, kurtosis **0.36×**. RF học từ lỗi yếu này không nhận ra lỗi thật mạnh. Nguyên nhân: `depth`/tần số cố định, **không chuẩn theo lỗi thật**.
+- **`physics_align` (recalibrate, mới):** `OptimizedFaultGenerator` (resonance + depth học từ lỗi thật) + **blend bớt nền normal** (giảm kurtosis từ ~11× về ~1.9× khớp thật) + **`_amp_rescale`** về [q10,q90] std lỗi thật → K=10: **0.693**; K=20: **0.665**; K=50: **0.700**. **Nhảy từ ~0.44 lên ~0.66–0.70**, tiến sát interpolate/amp_align, chỉ thua interp_align. → Kết luận: **physics không yếu về bản chất mà do chưa được chuẩn theo manifold lỗi thật** (`scripts/06 --gen physics_align --blend 0.25`).
 
 ### 3.6. DDPM / Diffusion
 - **Cơ bản:** *denoising diffusion.* Học cách khử nhiễu để rồi sinh mẫu mới từ nhiễu trắng — mô hình generative "SOTA" theo research 2026.

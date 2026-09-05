@@ -37,19 +37,35 @@ else
   done
 fi
 
-echo "==> CWRU fault files (Normal Baseline trên site chính thức bị hỏng — skip normal)"
-CWRU="$DATA_DIR/CWRU/12k Drive End Bearing Fault Data"
-if [ -d "$CWRU" ] && ls "$CWRU"/*.mat >/dev/null 2>&1; then
-  echo "    đã có ($(ls "$CWRU" | wc -l) file) — skip"
+echo "==> CWRU bearing data (fault + normal baseline)"
+CWRU_BASE="$DATA_DIR/CWRU"
+CWRU_FAULT="$CWRU_BASE/12k Drive End Bearing Fault Data"
+CWRU_NORM="$CWRU_BASE/Normal Baseline Data"
+BASE="https://engineering.case.edu/sites/default/files"
+FAULT_IDS="105 118 130 106 119 131 169 185 197 170 186 198 209 222 234 210 223 235"
+NORMAL_IDS="97 98 99 100"
+
+if [ -d "$CWRU_FAULT" ] && ls "$CWRU_FAULT"/*.mat >/dev/null 2>&1; then
+  echo "    fault đã có ($(ls "$CWRU_FAULT" | wc -l) file) — skip"
 else
-  mkdir -p "$CWRU"
-  BASE="https://engineering.case.edu/sites/default/files"
-  for n in 105 118 130 106 119 131 169 185 197 170 186 198 209 222 234 210 223 235; do
-    curl -sL --fail -o "$CWRU/$n.mat" "$BASE/$n.mat" &
+  mkdir -p "$CWRU_FAULT"
+  for n in $FAULT_IDS; do
+    curl -sL --fail -o "$CWRU_FAULT/$n.mat" "$BASE/$n.mat" &
   done
   wait
-  echo "    tải xong $(ls "$CWRU" | wc -l) file CWRU fault."
-  echo "    Dùng 'normal' từ NASA IMS đầu chuỗi (scripts đã xử lý sẵn)."
+  echo "    tải xong $(ls "$CWRU_FAULT" | wc -l) file CWRU fault."
+fi
+
+if [ -d "$CWRU_NORM" ] && ls "$CWRU_NORM"/*.mat >/dev/null 2>&1; then
+  echo "    normal baseline đã có ($(ls "$CWRU_NORM" | wc -l) file) — skip"
+else
+  mkdir -p "$CWRU_NORM"
+  for n in $NORMAL_IDS; do
+    curl -sL --fail -o "$CWRU_NORM/$n.mat" "$BASE/$n.mat" &
+  done
+  wait
+  echo "    tải xong $(ls "$CWRU_NORM" | wc -l) file CWRU normal baseline."
+  echo "    (nếu vài file đọc lỗi 'thiếu bytes', tải lại thủ công theo README)"
 fi
 
 echo "==> Done."

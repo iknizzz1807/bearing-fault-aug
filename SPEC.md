@@ -59,7 +59,7 @@ Cột "công nghệ gợi ý" chỉ là cách làm cái #1. Cụm công nghệ:
 
 | Công nghệ | Trạng thái | File |
 |---|---|---|
-| Baseline AE (không giám sát) | ✅ Chạy | `scripts/01_baseline_anomaly.py` · `src/ae.py` |
+| Baseline AE (không giám sát, sau fix split) | ✅ Chạy · IMS recall **0.657** / AUC **0.912** | `scripts/01_baseline_anomaly.py` · `src/ae.py` |
 | Baseline RF (có giám sát) + feature | ✅ Chạy | `scripts/02_compare_augmentation.py` · `src/features.py` |
 | Heuristic augment | ✅ Chạy | `scripts/02_compare_augmentation.py --gen heuristic` |
 | TimeGAN augment | ✅ Chạy (GPU) | `scripts/03_train_timegan.py` · `src/timegan_torch.py` |
@@ -393,16 +393,28 @@ threshold, `mult=0.1` để giữ cấu trúc — test: mult=1.0 phá sạch std
 **(c) SỐ LIỆU CUỐI SAU SỬA BUG ① và ② (mean 3 seed, interp_align+amp, n_synth=3200).**
 Đây là số ĐÚNG để dùng trong bản nộp (các số §3.4/§3.4.1/§3.4.5 là CHƯA sửa leak):
 
-| lỗi train | baseline | interp_align (FIX leak) | physics (FIX bug) |
-|---|---|---|---|
-| 10 | 0.252 | **0.766** ±0.021 | 0.411 ±0.031 |
-| 20 | 0.383 | **0.748** ±0.012 | 0.440 ±0.007 |
-| 50 | 0.490 | **0.788** ±0.025 | 0.597 ±0.009 |
+| lỗi train | baseline | interp_align (FIX leak) | physics (FIX bug) | **physics_align (b=0.25)** |
+|---|---|---|---|---|
+| 10 | 0.252 | **0.766** ±0.021 | 0.411 ±0.031 | **0.693** ±0.008 |
+| 20 | 0.383 | **0.748** ±0.012 | 0.440 ±0.007 | **0.665** ±0.006 |
+| 50 | 0.490 | **0.788** ±0.025 | 0.597 ±0.009 | **0.700** ±0.014 |
 
 Chi tiết seed: interp_align (k_mix=6, deliverable §3.4.8) — K=10 [0.773,0.783,0.742],
 K=20 [0.738,0.761,0.744], K=50 [0.795,0.808,0.761]; physics — K=10 [0.386,0.445,0.401],
 K=20 [0.447,0.440,0.433], K=50 [0.589,0.607,0.595]. Nguồn interp_align `results/m4_v2k6_s{21,42,97}.json`,
 physics `results/fix_*_K{10,20,50}_s{42,97,21}.json`.
+
+> **CẬP NHẬT (kiểm chứng #2, `physics_align`):** cột `physics` ở trên (0.411/0.440/0.597) là bộ
+> sinh physics CŨ (`src/physics.py::generate_synthetic_fault`, dùng `depth` + tần số va đập
+> ~5%fs ≈ 600Hz CỐ ĐỊNH). Đo descriptor cho thấy nó sinh lỗi **quá "mềm"** (std 0.51×,
+> env_energy 0.31×, kurt 0.36× so với lỗi IMS thật) → vì vậy recall chỉ +0.06, KHÔNG phải
+> lỗi code mà là **thiếu chuẩn hoá**. Bộ sinh mới `physics_align = OptimizedFaultGenerator
+> (resonance + depth học từ lỗi thật) + blend bớt nền normal (giảm kurtosis khớp thật) +
+> _amp_rescale về [q10,q90] std lỗi thật` → recall nhảy **0.411→0.693 (K=10), 0.440→0.665
+> (K=20), 0.597→0.700 (K=50)** — tiến sát amp_align/interpolate, chỉ thua interp_align.
+> Kết luận được sửa: **physics không yếu về bản chất mà do không được chuẩn theo manifold
+> lỗi thật; khi recalibrate đúng, nó đạt ~0.66–0.70.** Nguồn `results/physics_align_K{K}_s{S}.json`.
+> Lệnh: `scripts/06_scarcity_aug.py --gen physics_align --blend 0.25 --n-synth 3200`.
 
 > **Chú thích baseline (audit lần 2):** cột "baseline" trên = **seed s42** (0.2516/0.3831/0.4895),
 > KHÔNG phải mean 3 seed. Mean-3-seed của baseline (before) là **0.173/0.375/0.512**. Vì vậy

@@ -1,0 +1,27 @@
+{
+  "dataset": "ims",
+  "gen": "physics_align",
+  "fault_type": "bpfo",
+  "n_synth": 3200,
+  "rows": [
+    {
+      "n_fault_train": 10,
+      "n_train_normal": 28350,
+      "n_test_fault": 8100,
+      "before": {
+        "precision": 1.0,
+        "recall": 0.1325925925925926,
+        "f1": 0.2341399607586658,
+        "auc": 0.8665344078646547
+      },
+      "after": {
+        "precision": 0.9894060437651963,
+        "recall": 0.7033333333333334,
+        "f1": 0.8221965651609179,
+        "auc": 0.962909998475842
+      },
+      "d_recall": 0.5707407407407408,
+      "d_auc": 0.09637559061118728
+    }
+  ]
+}

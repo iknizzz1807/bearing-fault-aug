@@ -163,6 +163,7 @@ p { margin: 7px 0; }
 <ul>
 <li><strong>Cách hoạt động:</strong> RF huấn luyện trên train gồm rất nhiều normal + chỉ <code>K</code> lỗi thật. Với K=20 → model gần như chỉ thấy 20 mẫu lỗi → recall thấp (0.383). Với đầy đủ lỗi (bài IMS đủ, ~2000 lỗi) → recall chạm <strong>0.886 / AUC 0.982</strong> (trần của feature kỹ thuật).</li>
 <li><strong>Kết luận:</strong> đây là "nút thắt dữ liệu", không phải model yếu — bằng chứng ở §3.5 (kể cả self-supervised cũng không vượt).</li>
+<li><strong>AE (unsupervised, không cần nhãn lỗi):</strong> AE chỉ học "bình thường" + chấm ngưỡng P99 → IMS <strong>precision 0.984 / recall 0.657 / F1 0.788 / AUC 0.912</strong>. Lưu ý số này là <strong>tái chạy sau khi sửa bug split</strong> (bản trước ghi 0.52/0.03 là sai do leak) — baseline hữu ích cho kịch bản "chưa có nhãn lỗi".</li>
 </ul>
 <h3>3.2. [1] interp_align + amp + k_mix=6 (PHƯƠNG ÁN CHÍNH)</h3>
 <ul>
@@ -182,11 +183,12 @@ p { margin: 7px 0; }
 <li><strong>Kết quả:</strong> K=10: <strong>0.466</strong>; K=20: <strong>0.671</strong>; K=50: <strong>0.724</strong>.</li>
 <li><strong>Nhận xét:</strong> nền tảng của cả amp_align và interp_align. Thắng heuristic/generative nhờ <strong>bám sát manifold lỗi thật</strong>, không trôi ra ngoài.</li>
 </ul>
-<h3>3.5. Physics (BPFO/BPFI/BSF/FTF)</h3>
+<h3>3.5. Physics (BPFO/BPFI/BSF/FTF) — và bản recalibrate <code>physics_align</code></h3>
 <ul>
 <li><strong>Cơ bản:</strong> <em>mô hình cơ chế hỏng ổ bi.</em> Tính tần số đặc trưng (outer/inner race, ball, cage) theo hình học ổ bi, rồi <strong>bơm xung va đập lặp</strong> vào tín hiệu normal: <code>x_f(t)=x_h(t)+A·Σ h(t−kT)·w(t)+n(t)</code>.</li>
-<li><strong>Kết quả:</strong> K=10: <strong>0.411</strong>; K=20: <strong>0.440</strong>; K=50: <strong>0.597</strong>. Gần bằng DDPM/heuristic, xa interpolate.</li>
-<li><strong>Vì sao thua:</strong> dữ liệu lỗi thật IMS phức tạp (nhiều va đập + nhiễu), mô phỏng vật lý <strong>đơn giản hoá quá mức</strong> → lỗi giả không phủ được đa dạng lỗi thật. (Trước đây càng tệ hơn vì code bug: nhận feature 24D như tín hiệu → kết luận "physics không giúp" sai.)</li>
+<li><strong>Kết quả:</strong> bộ sinh CŨ (<code>src/physics.py</code>, <code>depth</code> + tần số va đập ~600Hz cố định) — K=10: <strong>0.411</strong>, K=20: <strong>0.440</strong>, K=50: <strong>0.597</strong>. Gần bằng DDPM/heuristic, xa interpolate.</li>
+<li><strong>Vì sao thua (đã chẩn đoán, không phải bug):</strong> đo descriptor cho thấy lỗi physics sinh ra <strong>quá "mềm"</strong> so với lỗi IMS thật — std <strong>0.51×</strong>, env_energy <strong>0.31×</strong>, kurtosis <strong>0.36×</strong>. RF học từ lỗi yếu này không nhận ra lỗi thật mạnh. Nguyên nhân: <code>depth</code>/tần số cố định, <strong>không chuẩn theo lỗi thật</strong>.</li>
+<li><strong><code>physics_align</code> (recalibrate, mới):</strong> <code>OptimizedFaultGenerator</code> (resonance + depth học từ lỗi thật) + <strong>blend bớt nền normal</strong> (giảm kurtosis từ ~11× về ~1.9× khớp thật) + <strong><code>_amp_rescale</code></strong> về [q10,q90] std lỗi thật → K=10: <strong>0.693</strong>; K=20: <strong>0.665</strong>; K=50: <strong>0.700</strong>. <strong>Nhảy từ ~0.44 lên ~0.66–0.70</strong>, tiến sát interpolate/amp_align, chỉ thua interp_align. → Kết luận: <strong>physics không yếu về bản chất mà do chưa được chuẩn theo manifold lỗi thật</strong> (<code>scripts/06 --gen physics_align --blend 0.25</code>).</li>
 </ul>
 <h3>3.6. DDPM / Diffusion</h3>
 <ul>

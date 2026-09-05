@@ -199,6 +199,40 @@ class OptimizedFaultGenerator:
             results[i] = base + depth_i * base.std() * x_unit
         return results
 
+    def generate_physics_aligned(self, normal_windows: np.ndarray, fault_windows: np.ndarray,
+                                 n: int, rng: np.random.Generator, blend: float = 0.25,
+                                 noise_frac: float = 0.05) -> np.ndarray:
+        """PHYSICS VẬT LÝ NHƯNG CHUẨN THEO LỖI THẬT (fix điểm yếu của `physics.py`).
+
+        Vấn đề phát hiện (SPEC §3.4 + đo descriptor): bộ sinh physics cũ
+        (`src/physics.py`) dùng tần số va đập ~5%fs (≈600Hz — quá dịu) + `depth` CỐ
+        ĐỊNH → lỗi sinh ra quá "mềm": std 0.51×, env_energy 0.31×, kurtosis 0.36× so
+        với lỗi IMS THẬT → RF học từ lỗi yếu này không nhận ra lỗi thật mạnh (recall
+        chỉ +0.06 ở K=20).
+
+        Bộ này vuốt theo hướng ngược lại để BÁM MANIFOLD LỖI THẬT, gồm 3 bước:
+          1. `self.generate()` — bơm xung vào nền normal bằng tần số CỘNG HƯỞNG
+             (resonance ~3000Hz học/chỉnh từ lỗi thật) + depth học từ std lỗi thật
+             → sửa được amplitude (std/env_energy → ~1.0×, XÁC NHẬN).
+          2. `blend` — trộn lại một phần nền NORMAL để giảm độ nhọn quá mức
+             (kurtosis 6× → về gần thật ~1.9×) vì bơm xung thuần sinh lỗi quá
+             "mindful/sắc"; nền liên tục làm phẳng đúng cấu trúc lỗi thật.
+          3. `_amp_rescale` — chuẩn biên độ từng bản về [q10,q90] phân bố std lỗi thật
+             (bù amplitude, đúng như `amp_align`/`interp_align` đã làm).
+
+        Trả về (n, win) lỗi giả MIỀN THỜI GIAN (sau đó qua `raw_features` như mọi bộ).
+        """
+        if not self._calibrated or self.f_char is None:
+            raise RuntimeError("Gọi calibrate() trước khi generate_physics_aligned().")
+        nw = np.asarray(normal_windows, dtype=np.float64)
+        fw = np.asarray(fault_windows, dtype=np.float64)
+        n_out = int(n)
+        phys = self.generate(nw, n_out, rng)                      # bước 1
+        base = nw[rng.integers(0, len(nw), size=n_out)] if len(nw) else phys * 0
+        x = blend * phys + (1.0 - blend) * base                   # bước 2: giảm độ nhọn
+        x = x + rng.normal(0, noise_frac * x.std() + 1e-12, x.shape)
+        return self._amp_rescale(x, fw, rng)                      # bước 3: chuẩn amplitude
+
     def generate_amp_aligned(self, fault_windows: np.ndarray, n: int,
                              rng: np.random.Generator, noise_frac: float = 0.10,
                              jitter_smp: int = 8) -> np.ndarray:
